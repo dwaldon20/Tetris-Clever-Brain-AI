@@ -1,0 +1,113 @@
+import student.tetris.*;
+/**
+ *  Defines the methods that any class must implement in 
+ *  order to act as the "Brain" for an automated Tetris player.
+ *
+ *  @author dwaldon
+ *  @version 2023.04.04
+ */
+public class CleverBrain implements Brain
+{
+    /**
+     * Initializes a newly created CleverBrain object.
+     */
+    public CleverBrain()
+    {
+        super();
+    }
+
+    /**
+     * Determines what the "best" move will be to be placed on the board. 
+     * 
+     * @param board For the board that the tetris game will be played on
+     * @param piece For the piece being played
+     * @param heightLimit For the max height on the board
+     * 
+     * @return move For the "best" move being played that will be placed
+     */
+    public Move bestMove( Board board, Piece piece, int heightLimit )
+    {
+        Move move = new Move(piece);
+        int coordX = 0;
+        int coordY = 0;
+        Piece bestPiece = null;
+        double bestScore = 10000;
+
+        for ( int rotation = 0; rotation < piece.numRotations(); rotation++)
+        {
+            for (int x = 0; x < board.getWidth() - piece.getWidth()+1; x++) 
+            {
+                int y = board.rowAfterDrop(piece, x);
+                Point point = new Point(x, y);
+                int rowFilled = board.PLACE_ROW_FILLED;
+
+                if ( y < heightLimit - piece.getHeight() + 1) 
+                {  
+                    int place = board.place(piece, point);
+                    if (place <= rowFilled) 
+                    {
+                        if (place == rowFilled)
+                        {
+                            board.clearRows();
+                        }
+                        double score = rateBoard(board);
+                        if (score < bestScore) 
+                        {
+                            coordX = x;
+                            coordY = y;
+                            bestScore = score;
+                            bestPiece = piece;
+                        }
+                    }
+                    board.undo();    
+                }
+            }
+    
+            int nextRotationIndex = rotation + 1;
+            if (nextRotationIndex == piece.getRotations().length)
+            {
+                nextRotationIndex = 0;
+            }
+            Piece nextRotation = piece.getRotations()[nextRotationIndex];
+            piece = nextRotation;
+        }
+
+        Point point = new Point(coordX, coordY);
+        move.setLocation(point);
+        move.setPiece(bestPiece);
+        move.setScore(bestScore);
+        return move;
+    }
+
+    /**
+     * Will compute the score of the board determining 
+     * how difficult the board is.
+     * 
+     * @param board For the current board being played on.
+     * 
+     * @return double For the score of the board.
+     */
+    public double rateBoard(Board board)
+    {
+        double heightSum = 0;
+        int holes = 0;
+        for (int x = 0; x < board.getWidth(); x++) 
+        {
+            int column = board.getColumnHeights()[x];
+            heightSum += column;
+            for (int y = column - 2; y >= 0; y--)
+            {
+                Point point = new Point(x,y);
+                if  (!board.hasBlockAt(point)) 
+                {
+                    holes++;
+                }
+            }
+        }
+        double avgHeight = heightSum / board.getWidth();
+        double boardRating = 8 * board.getHeight() 
+            + 30 * avgHeight + 3 * holes;
+
+        return boardRating;
+    }
+}
